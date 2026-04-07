@@ -69,7 +69,7 @@ function SpeedFocTooltip({
   const baseline = typeof d.baseline === "number" ? d.baseline : null
   if (speed == null) return null
   const userFoc = showUserCurve && interpolateUserFoc ? interpolateUserFoc(speed) : null
-  const delta = userFoc != null && baseline != null ? userFoc - baseline : null
+  const delta = userFoc != null && baseline != null ? baseline - userFoc : null
   return (
     <div className="bg-[#102338] border border-slate-600 rounded p-3 text-sm space-y-1">
       <p className="text-white font-medium">Speed: {speed.toFixed(1)} kts</p>
@@ -784,7 +784,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                   <tbody>
                     {speedFocData.map((dataPoint, index) => {
                       const userFoc = showUserCurve ? interpolateUserFoc(dataPoint.speed) : null
-                      const delta = userFoc !== null ? userFoc - dataPoint.baseline : null
+                      const delta = userFoc !== null ? dataPoint.baseline - userFoc : null
                       return (
                         <tr key={index} className={`${index % 2 === 0 ? "bg-[#071318]" : "bg-[#0A1B26]"} hover:bg-[#24D2B5]/5 transition-colors`}>
                           <td className="p-3 text-white">{dataPoint.speed.toFixed(1)}</td>
