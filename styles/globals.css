@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+    --background: 200 60% 4%;
+    --foreground: 0 0% 98%;
+    --card: 200 45% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 200 45% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 200 40% 8%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 200 40% 8%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 167 70% 49%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 200 30% 15%;
+    --input: 200 30% 15%;
+    --ring: 167 70% 49%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.5rem;
+    --sidebar-background: 200 60% 4%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 167 70% 49%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 40% 8%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 200 30% 15%;
+    --sidebar-ring: 167 70% 49%;
+  }
+  .dark {
+    --background: 200 60% 4%;
+    --foreground: 0 0% 98%;
+    --card: 200 45% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 200 45% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 200 40% 8%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 200 40% 8%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 167 70% 49%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 200 30% 15%;
+    --input: 200 30% 15%;
+    --ring: 167 70% 49%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 200 60% 4%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 167 70% 49%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 40% 8%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 200 30% 15%;
+    --sidebar-ring: 167 70% 49%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-size: 20px;
+  }
+  html, body {
+    @apply bg-background text-foreground text-lg;
+  }
+  /* Smooth transitions on interactive elements */
+  button, a, [role="tab"], [role="checkbox"], input, select {
+    @apply transition-colors duration-150;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-[#24D2B5]/40 ring-offset-2 ring-offset-[#051219];
+  }
+}
+
+@layer components {
+  .card-maritime {
+    @apply bg-[#0A1B26] border border-slate-700/60 rounded-lg;
+    box-shadow: 0 0 20px -5px rgba(36, 210, 181, 0.06), 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  .card-maritime-elevated {
+    @apply bg-[#0A1B26] border border-slate-600/60 rounded-lg;
+    box-shadow: 0 0 30px -5px rgba(36, 210, 181, 0.1), 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  .card-maritime:hover, .card-maritime-elevated:hover {
+    box-shadow: 0 0 25px -5px rgba(36, 210, 181, 0.12), 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  .section-heading {
+    @apply text-base font-semibold text-slate-300 uppercase tracking-wider border-l-2 border-[#24D2B5] pl-3;
+  }
+  .value-badge {
+    @apply bg-[#24D2B5]/15 text-[#24D2B5] px-2 py-0.5 rounded text-sm font-mono;
+  }
+}
