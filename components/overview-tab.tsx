@@ -70,16 +70,29 @@ function SpeedFocTooltip({
   if (speed == null) return null
   const userFoc = showUserCurve && interpolateUserFoc ? interpolateUserFoc(speed) : null
   const delta = userFoc != null && baseline != null ? baseline - userFoc : null
+  const isReported = !!d.date
   return (
-    <div className="bg-[#102338] border border-slate-600 rounded p-3 text-sm space-y-1">
-      <p className="text-white font-medium">Speed: {speed.toFixed(1)} kts</p>
-      {baseline != null && <p className="text-[#00FFFF]">Baseline FOC: {baseline.toFixed(2)} MT/day</p>}
-      {userFoc != null && delta != null && (
+    <div className="bg-[#102338] border border-slate-600 rounded-lg p-3 text-sm space-y-1 shadow-lg">
+      {isReported && (
         <>
-          <p className="text-[#FF8C00]">User FOC: {userFoc.toFixed(2)} MT/day</p>
-          <p className={delta > 0 ? "text-red-400" : "text-green-400"}>
-            Δ: {delta > 0 ? "+" : ""}{delta.toFixed(2)} ({delta > 0 ? "+" : ""}{((delta / baseline!) * 100).toFixed(1)}%)
-          </p>
+          <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Reported Noon Data</p>
+          <p className="text-white font-medium">Date: {d.date}</p>
+          <p className="text-white">Speed: {speed.toFixed(1)} kts</p>
+          <p className="text-[#0088FF]">Reported FOC: {baseline!.toFixed(2)} MT/day</p>
+        </>
+      )}
+      {!isReported && (
+        <>
+          <p className="text-white font-medium">Speed: {speed.toFixed(1)} kts</p>
+          {baseline != null && <p className="text-[#00FFFF]">Baseline FOC: {baseline.toFixed(2)} MT/day</p>}
+          {userFoc != null && delta != null && (
+            <>
+              <p className="text-[#FF8C00]">Reference FOC: {userFoc.toFixed(2)} MT/day</p>
+              <p className={delta > 0 ? "text-red-400" : "text-green-400"}>
+                Δ: {delta > 0 ? "+" : ""}{delta.toFixed(2)} ({delta > 0 ? "+" : ""}{((delta / baseline!) * 100).toFixed(1)}%)
+              </p>
+            </>
+          )}
         </>
       )}
     </div>
@@ -272,6 +285,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
     if (speedFocData.length === 0) return []
     const seed = 42
     const clusterMin = 11.5, clusterMax = 13.0
+    const baseDate = new Date("2025-01-05")
     const points = []
     for (let i = 0; i < 25; i++) {
       const t = i / 24
@@ -280,7 +294,9 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
       const ref = speedFocData[Math.max(0, idx < 0 ? speedFocData.length - 1 : idx)]
       if (!ref) continue
       const noise = (Math.sin(seed * (i + 1)) * 0.08 + Math.cos(seed + i * 2) * 0.04) * ref.baseline
-      points.push({ speed, baseline: parseFloat((ref.baseline + noise).toFixed(2)) })
+      const reportDate = new Date(baseDate.getTime() + i * 24 * 60 * 60 * 1000)
+      const dateStr = reportDate.toISOString().split("T")[0]
+      points.push({ speed, baseline: parseFloat((ref.baseline + noise).toFixed(2)), date: dateStr })
     }
     return points.sort((a, b) => a.speed - b.speed)
   }
@@ -476,7 +492,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                   onCheckedChange={(v) => setShowUserCurve(!!v)}
                 />
                 <label htmlFor="showUserCurve" className="text-white text-base">
-                  Show User Curve
+                  Show Reference Data
                 </label>
               </div>
               {showUserCurve && (
@@ -495,7 +511,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                     onClick={() => setShowUserCurveModal(true)}
                     className="w-full text-sm text-black bg-[#FF8C00] hover:bg-orange-400 rounded px-3 py-2 font-medium"
                   >
-                    Edit User Curve Data
+                    Edit Reference Data
                   </button>
                   {/* Quick-select from user curve conditions */}
                   {(() => {
@@ -593,7 +609,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       { value: "Actual Reported FOC", type: "circle", color: "#0000FF" },
                       { value: "Baseline FOC", type: "line", color: "#00FFFF" },
                       ...(showUserCurve && parsedUserCurve.length >= 2
-                        ? [{ value: "User Input Curve", type: "line" as const, color: "#FF8C00" }]
+                        ? [{ value: "Reference Model", type: "line" as const, color: "#FF8C00" }]
                         : []),
                     ]}
                   />
@@ -625,7 +641,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       stroke="#FF8C00"
                       strokeWidth={2}
                       strokeDasharray="6 3"
-                      name="User Input Curve"
+                      name="Reference Model"
                       dot={{ fill: "#FF8C00", r: 4 }}
                       legendType="line"
                     />
@@ -636,7 +652,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
           </Card>
         </div>
 
-        {/* User Curve Modal */}
+        {/* Reference Data Modal */}
         {showUserCurveModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
@@ -646,7 +662,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
               {/* Modal header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
                 <div>
-                  <h2 className="text-[#FF8C00] font-semibold text-lg">User Fuel Curve — Data Points</h2>
+                  <h2 className="text-[#FF8C00] font-semibold text-lg">Reference Data — Data Points</h2>
                   <p className="text-slate-400 text-xs mt-0.5">
                     Baseline at <span className="text-[#24D2B5]">{snappedDraft}m</span> · rows must have a matching draft to appear on the chart
                   </p>
@@ -774,7 +790,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       <th className="p-3 text-white">Draft (m)</th>
                       <th className="p-3 text-white">Baseline FOC (MT/day)</th>
                       {showUserCurve && parsedUserCurve.length >= 2 && (
-                        <th className="p-3 text-[#FF8C00]">User FOC (MT/day)</th>
+                        <th className="p-3 text-[#FF8C00]">Reference FOC (MT/day)</th>
                       )}
                       {showUserCurve && parsedUserCurve.length >= 2 && (
                         <th className="p-3 text-slate-400">Δ vs Baseline</th>
