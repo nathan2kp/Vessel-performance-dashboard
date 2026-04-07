@@ -55,45 +55,71 @@ function snapToNearest(value: number, options: number[]): number {
 
 function SpeedFocTooltip({
   active, payload,
-  interpolateUserFoc, showUserCurve,
+  interpolateUserFoc, showUserCurve, speedFocData,
 }: {
   active?: boolean
   payload?: any[]
   interpolateUserFoc?: (speed: number) => number | null
   showUserCurve?: boolean
+  speedFocData?: { speed: number; baseline: number }[]
 }) {
   if (!active || !payload?.length) return null
-  const d = payload[0]?.payload
-  if (!d) return null
-  const speed = typeof d.speed === "number" ? d.speed : null
-  const baseline = typeof d.baseline === "number" ? d.baseline : null
+
+  // Find the reported scatter point if one exists in payload (prioritize it)
+  const reportedEntry = payload.find(e => e?.payload?.date)
+  // Find baseline line entry
+  const baselineEntry = payload.find(e => e?.payload && !e.payload.date && typeof e.payload.baseline === "number")
+  // Find reference model entry
+  const refEntry = payload.find(e => e?.payload && typeof e.payload.userFoc === "number")
+
+  // Use the most specific data source for speed
+  const primaryData = reportedEntry?.payload ?? baselineEntry?.payload ?? refEntry?.payload ?? payload[0]?.payload
+  if (!primaryData) return null
+  const speed = typeof primaryData.speed === "number" ? primaryData.speed : null
   if (speed == null) return null
-  const userFoc = showUserCurve && interpolateUserFoc ? interpolateUserFoc(speed) : null
-  const delta = userFoc != null && baseline != null ? baseline - userFoc : null
-  const isReported = !!d.date
+
+  // Get baseline from the line data or look up from speedFocData
+  let baseline: number | null = baselineEntry?.payload?.baseline ?? null
+  if (baseline == null && speedFocData && speedFocData.length > 0) {
+    const closest = speedFocData.reduce((prev, curr) =>
+      Math.abs(curr.speed - speed) < Math.abs(prev.speed - speed) ? curr : prev
+    )
+    if (Math.abs(closest.speed - speed) < 0.5) baseline = closest.baseline
+  }
+
+  // Get reference FOC from payload or interpolate
+  let refFoc: number | null = refEntry?.payload?.userFoc ?? null
+  if (refFoc == null && showUserCurve && interpolateUserFoc) {
+    refFoc = interpolateUserFoc(speed)
+  }
+
+  const delta = refFoc != null && baseline != null ? baseline - refFoc : null
+
+  // Reported point tooltip
+  if (reportedEntry) {
+    const reportedFoc = reportedEntry.payload.baseline
+    return (
+      <div className="bg-[#102338] border border-slate-600 rounded-lg p-3 text-sm space-y-1 shadow-lg">
+        <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Reported Noon Data</p>
+        <p className="text-white font-medium">Date: {reportedEntry.payload.date}</p>
+        <p className="text-white">Speed: {speed.toFixed(2)} kts</p>
+        {reportedFoc != null && <p className="text-[#0088FF]">Reported FOC: {reportedFoc.toFixed(2)} MT/day</p>}
+        {baseline != null && <p className="text-[#00FFFF]">Baseline FOC: {baseline.toFixed(2)} MT/day</p>}
+        {refFoc != null && <p className="text-[#FF8C00]">Reference FOC: {refFoc.toFixed(2)} MT/day</p>}
+      </div>
+    )
+  }
+
+  // Baseline / Reference tooltip
   return (
     <div className="bg-[#102338] border border-slate-600 rounded-lg p-3 text-sm space-y-1 shadow-lg">
-      {isReported && (
-        <>
-          <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Reported Noon Data</p>
-          <p className="text-white font-medium">Date: {d.date}</p>
-          <p className="text-white">Speed: {speed.toFixed(1)} kts</p>
-          <p className="text-[#0088FF]">Reported FOC: {baseline!.toFixed(2)} MT/day</p>
-        </>
-      )}
-      {!isReported && (
-        <>
-          <p className="text-white font-medium">Speed: {speed.toFixed(1)} kts</p>
-          {baseline != null && <p className="text-[#00FFFF]">Baseline FOC: {baseline.toFixed(2)} MT/day</p>}
-          {userFoc != null && delta != null && (
-            <>
-              <p className="text-[#FF8C00]">Reference FOC: {userFoc.toFixed(2)} MT/day</p>
-              <p className={delta > 0 ? "text-red-400" : "text-green-400"}>
-                Δ: {delta > 0 ? "+" : ""}{delta.toFixed(2)} ({delta > 0 ? "+" : ""}{((delta / baseline!) * 100).toFixed(1)}%)
-              </p>
-            </>
-          )}
-        </>
+      <p className="text-white font-medium">Speed: {speed.toFixed(2)} kts</p>
+      {baseline != null && <p className="text-[#00FFFF]">Baseline FOC: {baseline.toFixed(2)} MT/day</p>}
+      {refFoc != null && <p className="text-[#FF8C00]">Reference FOC: {refFoc.toFixed(2)} MT/day</p>}
+      {delta != null && baseline != null && (
+        <p className={delta > 0 ? "text-red-400" : "text-green-400"}>
+          Δ: {delta > 0 ? "+" : ""}{delta.toFixed(2)} ({delta > 0 ? "+" : ""}{((delta / baseline) * 100).toFixed(1)}%)
+        </p>
       )}
     </div>
   )
@@ -157,77 +183,88 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
       .finally(() => setLoading(false))
   }, [selectedVessel])
 
-  // Per-vessel KPI data
-  const vesselKPIs: Record<string, { label: string; unit: string; value: string; delta: string; icon: typeof Droplets; color: string }[]> = {
-    PRIDE: [
-      { label: "Total Fuel Consumption", unit: "MT", value: "4,820", delta: "+3%", icon: Droplets, color: "#FF6B6B" },
-      { label: "Total Sailing Distance", unit: "NM", value: "48,150", delta: "+4%", icon: Navigation, color: "#4ECDC4" },
-      { label: "Total Emissions (CO₂e)", unit: "MT", value: "15,920", delta: "+3%", icon: Leaf, color: "#45B7D1" },
-      { label: "Cargo Carried", unit: "MT", value: "28,400", delta: "+6%", icon: Package, color: "#96CEB4" },
-    ],
-    CONSTELLATION: [
-      { label: "Total Fuel Consumption", unit: "MT", value: "5,612", delta: "+5%", icon: Droplets, color: "#FF6B6B" },
-      { label: "Total Sailing Distance", unit: "NM", value: "54,230", delta: "+5%", icon: Navigation, color: "#4ECDC4" },
-      { label: "Total Emissions (CO₂e)", unit: "MT", value: "18,745", delta: "+5%", icon: Leaf, color: "#45B7D1" },
-      { label: "Cargo Carried", unit: "MT", value: "76,500", delta: "+2%", icon: Package, color: "#96CEB4" },
-    ],
-    WILLOW: [
-      { label: "Total Fuel Consumption", unit: "MT", value: "6,340", delta: "+7%", icon: Droplets, color: "#FF6B6B" },
-      { label: "Total Sailing Distance", unit: "NM", value: "61,800", delta: "+4%", icon: Navigation, color: "#4ECDC4" },
-      { label: "Total Emissions (CO₂e)", unit: "MT", value: "21,100", delta: "+6%", icon: Leaf, color: "#45B7D1" },
-      { label: "Cargo Carried", unit: "MT", value: "108,200", delta: "+3%", icon: Package, color: "#96CEB4" },
-    ],
+  // Period multipliers for cumulative KPI values and fuel
+  const periodScale: Record<string, number> = { "Last Week": 0.25, "Last Month": 1, "Last Quarter": 3, "YTD": 6 }
+  const ps = periodScale[timePeriod] ?? 1
+  // Period-based delta variation (shorter periods = more volatile)
+  const periodDeltas: Record<string, Record<string, string[]>> = {
+    "Last Week":    { PRIDE: ["+1%","+2%","+1%","+3%"],    CONSTELLATION: ["+2%","+3%","+2%","-1%"],   WILLOW: ["+4%","+1%","+3%","+2%"] },
+    "Last Month":   { PRIDE: ["+3%","+4%","+3%","+6%"],    CONSTELLATION: ["+5%","+5%","+5%","+2%"],   WILLOW: ["+7%","+4%","+6%","+3%"] },
+    "Last Quarter": { PRIDE: ["+4%","+5%","+4%","+7%"],    CONSTELLATION: ["+6%","+4%","+6%","+3%"],   WILLOW: ["+8%","+5%","+7%","+4%"] },
+    "YTD":          { PRIDE: ["+5%","+6%","+5%","+8%"],    CONSTELLATION: ["+7%","+5%","+7%","+4%"],   WILLOW: ["+9%","+6%","+8%","+5%"] },
   }
-  const kpiData = vesselKPIs[selectedVessel] ?? vesselKPIs.CONSTELLATION
+  const deltas = periodDeltas[timePeriod]?.[selectedVessel] ?? ["+5%","+5%","+5%","+5%"]
+  const fmt = (n: number) => Math.round(n).toLocaleString()
 
-  // Per-vessel fuel breakdown
-  const vesselFuel: Record<string, { name: string; value: number; color: string }[]> = {
-    PRIDE: [
-      { name: "VLSFO", value: 2400, color: "#4ECDC4" },
-      { name: "LSMGO", value: 1200, color: "#96CEB4" },
-      { name: "LNG", value: 820, color: "#45B7D1" },
-      { name: "HSFO", value: 400, color: "#FF6B6B" },
-    ],
-    CONSTELLATION: [
-      { name: "HSFO", value: 1500, color: "#FF6B6B" },
-      { name: "VLSFO", value: 2000, color: "#4ECDC4" },
-      { name: "LNG", value: 1500, color: "#45B7D1" },
-      { name: "LSMGO", value: 612, color: "#96CEB4" },
-    ],
-    WILLOW: [
-      { name: "HSFO", value: 2800, color: "#FF6B6B" },
-      { name: "VLSFO", value: 2100, color: "#4ECDC4" },
-      { name: "LSMGO", value: 940, color: "#96CEB4" },
-      { name: "LNG", value: 500, color: "#45B7D1" },
-    ],
+  // Per-vessel monthly base KPI values (scaled by period)
+  const vesselKPIBase: Record<string, [number, number, number, number]> = {
+    PRIDE:         [4820, 48150, 15920, 28400],
+    CONSTELLATION: [5612, 54230, 18745, 76500],
+    WILLOW:        [6340, 61800, 21100, 108200],
   }
-  const fuelData = vesselFuel[selectedVessel] ?? vesselFuel.CONSTELLATION
+  const kpiBase = vesselKPIBase[selectedVessel] ?? vesselKPIBase.CONSTELLATION
+  const kpiData = [
+    { label: "Total Fuel Consumption", unit: "MT", value: fmt(kpiBase[0] * ps), delta: deltas[0], icon: Droplets, color: "#FF6B6B" },
+    { label: "Total Sailing Distance", unit: "NM", value: fmt(kpiBase[1] * ps), delta: deltas[1], icon: Navigation, color: "#4ECDC4" },
+    { label: "Total Emissions (CO₂e)", unit: "MT", value: fmt(kpiBase[2] * ps), delta: deltas[2], icon: Leaf, color: "#45B7D1" },
+    { label: "Cargo Carried", unit: "MT", value: fmt(kpiBase[3] * ps), delta: deltas[3], icon: Package, color: "#96CEB4" },
+  ]
 
-  // Per-vessel score card
-  const vesselScores: Record<string, { metric: string; rawScore: string; value: number }[]> = {
+  // Per-vessel monthly base fuel breakdown (scaled by period)
+  const vesselFuelBase: Record<string, { name: string; base: number; color: string }[]> = {
     PRIDE: [
-      { metric: "Reporting Accuracy", rawScore: "95%", value: 95 },
-      { metric: "Reporting Timeliness", rawScore: "91%", value: 91 },
-      { metric: "Route Adherence", rawScore: "88%", value: 88 },
-      { metric: "Speed Compliance", rawScore: "90%", value: 90 },
-      { metric: "On-Time Arrival", rawScore: "93%", value: 93 },
+      { name: "VLSFO", base: 2400, color: "#4ECDC4" },
+      { name: "LSMGO", base: 1200, color: "#96CEB4" },
+      { name: "LNG", base: 820, color: "#45B7D1" },
+      { name: "HSFO", base: 400, color: "#FF6B6B" },
     ],
     CONSTELLATION: [
-      { metric: "Reporting Accuracy", rawScore: "92%", value: 92 },
-      { metric: "Reporting Timeliness", rawScore: "88%", value: 88 },
-      { metric: "Route Adherence", rawScore: "94%", value: 94 },
-      { metric: "Speed Compliance", rawScore: "86%", value: 86 },
-      { metric: "On-Time Arrival", rawScore: "89%", value: 89 },
+      { name: "HSFO", base: 1500, color: "#FF6B6B" },
+      { name: "VLSFO", base: 2000, color: "#4ECDC4" },
+      { name: "LNG", base: 1500, color: "#45B7D1" },
+      { name: "LSMGO", base: 612, color: "#96CEB4" },
     ],
     WILLOW: [
-      { metric: "Reporting Accuracy", rawScore: "87%", value: 87 },
-      { metric: "Reporting Timeliness", rawScore: "82%", value: 82 },
-      { metric: "Route Adherence", rawScore: "91%", value: 91 },
-      { metric: "Speed Compliance", rawScore: "79%", value: 79 },
-      { metric: "On-Time Arrival", rawScore: "85%", value: 85 },
+      { name: "HSFO", base: 2800, color: "#FF6B6B" },
+      { name: "VLSFO", base: 2100, color: "#4ECDC4" },
+      { name: "LSMGO", base: 940, color: "#96CEB4" },
+      { name: "LNG", base: 500, color: "#45B7D1" },
     ],
   }
-  const scoreCardData = vesselScores[selectedVessel] ?? vesselScores.CONSTELLATION
+  const fuelData = (vesselFuelBase[selectedVessel] ?? vesselFuelBase.CONSTELLATION).map(f => ({
+    name: f.name, value: Math.round(f.base * ps), color: f.color,
+  }))
+
+  // Per-vessel score card (scores shift slightly by period — longer periods regress toward mean)
+  const vesselScoreBase: Record<string, { metric: string; base: number }[]> = {
+    PRIDE: [
+      { metric: "Reporting Accuracy", base: 95 },
+      { metric: "Reporting Timeliness", base: 91 },
+      { metric: "Route Adherence", base: 88 },
+      { metric: "Speed Compliance", base: 90 },
+      { metric: "On-Time Arrival", base: 93 },
+    ],
+    CONSTELLATION: [
+      { metric: "Reporting Accuracy", base: 92 },
+      { metric: "Reporting Timeliness", base: 88 },
+      { metric: "Route Adherence", base: 94 },
+      { metric: "Speed Compliance", base: 86 },
+      { metric: "On-Time Arrival", base: 89 },
+    ],
+    WILLOW: [
+      { metric: "Reporting Accuracy", base: 87 },
+      { metric: "Reporting Timeliness", base: 82 },
+      { metric: "Route Adherence", base: 91 },
+      { metric: "Speed Compliance", base: 79 },
+      { metric: "On-Time Arrival", base: 85 },
+    ],
+  }
+  const scoreShift: Record<string, number> = { "Last Week": 2, "Last Month": 0, "Last Quarter": -1, "YTD": -2 }
+  const ss = scoreShift[timePeriod] ?? 0
+  const scoreCardData = (vesselScoreBase[selectedVessel] ?? vesselScoreBase.CONSTELLATION).map(s => {
+    const v = Math.min(100, Math.max(0, s.base + ss))
+    return { metric: s.metric, rawScore: `${v}%`, value: v }
+  })
 
   // Resolve active vessel data from loaded CSV
   // Full ranges for slider min/max (unfiltered)
@@ -376,7 +413,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                 <div key={index} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
                   <span className="text-sm text-white">
-                    {item.name}: {item.value}MT
+                    {item.name}: {item.value.toLocaleString()}MT
                   </span>
                 </div>
               ))}
@@ -601,6 +638,7 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       {...props}
                       interpolateUserFoc={interpolateUserFoc}
                       showUserCurve={showUserCurve && parsedUserCurve.length >= 2}
+                      speedFocData={speedFocData}
                     />
                   )} />
                   <Legend
