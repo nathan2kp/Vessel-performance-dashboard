@@ -1,0 +1,44 @@
+[
+  {
+    "basin": "Southern Hemisphere Tropical Systems",
+    "storm_header": {
+      "raw": ""
+    },
+    "source_url": "https://www.metoc.navy.mil/jtwc/products/sh3126web.txt",
+    "feed_pub_date": "Wed, 08 Apr 26 08:14:02 +0000",
+    "scraped_at": "2026-04-08T08:14:52.866674Z",
+    "parsed": {
+      "warning_number": "011",
+      "storm_type": "TROPICAL CYCLONE",
+      "storm_name": "31P",
+      "position": {
+        "lat": -22.2,
+        "lon": 177.4,
+        "lat_str": "22.2S",
+        "lon_str": "177.4E"
+      },
+      "max_winds_kt": 80
+    }
+  },
+  {
+    "basin": "Southern Hemisphere Tropical Systems",
+    "storm_header": {
+      "raw": ""
+    },
+    "source_url": "https://www.metoc.navy.mil/jtwc/products/sh3026web.txt",
+    "feed_pub_date": "Wed, 08 Apr 26 08:14:02 +0000",
+    "scraped_at": "2026-04-08T08:14:53.788981Z",
+    "parsed": {
+      "warning_number": "013",
+      "storm_type": "TROPICAL CYCLONE",
+      "storm_name": "30P",
+      "position": {
+        "lat": -9.0,
+        "lon": 155.9,
+        "lat_str": "9.0S",
+        "lon_str": "155.9E"
+      },
+      "max_winds_kt": 115
+    }
+  }
+]

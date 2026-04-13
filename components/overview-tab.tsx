@@ -16,7 +16,7 @@ import {
   ComposedChart,
   ZAxis,
 } from "recharts"
-import { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScoreIndicator } from "./score-indicator"
@@ -56,12 +56,16 @@ function snapToNearest(value: number, options: number[]): number {
 function SpeedFocTooltip({
   active, payload,
   interpolateUserFoc, showUserCurve, speedFocData,
+  cpGuaranteedCurve, cpAdjustedCurve, activeCondition,
 }: {
   active?: boolean
   payload?: any[]
   interpolateUserFoc?: (speed: number) => number | null
   showUserCurve?: boolean
   speedFocData?: { speed: number; baseline: number }[]
+  cpGuaranteedCurve?: { speed: number; cpFoc: number }[]
+  cpAdjustedCurve?: { speed: number; cpFoc: number }[]
+  activeCondition?: "Ballast" | "Laden" | null
 }) {
   if (!active || !payload?.length) return null
 
@@ -78,14 +82,27 @@ function SpeedFocTooltip({
   const speed = typeof primaryData.speed === "number" ? primaryData.speed : null
   if (speed == null) return null
 
-  // Get baseline from the line data or look up from speedFocData
-  let baseline: number | null = baselineEntry?.payload?.baseline ?? null
-  if (baseline == null && speedFocData && speedFocData.length > 0) {
-    const closest = speedFocData.reduce((prev, curr) =>
-      Math.abs(curr.speed - speed) < Math.abs(prev.speed - speed) ? curr : prev
-    )
-    if (Math.abs(closest.speed - speed) < 0.5) baseline = closest.baseline
+  // ALWAYS look up baseline from speedFocData at the hovered speed (most accurate).
+  // Don't rely on baselineEntry.payload.baseline because Recharts may pair scatter hovers
+  // with arbitrary line data points, causing speed/baseline mismatch.
+  let baseline: number | null = null
+  if (speedFocData && speedFocData.length > 0) {
+    if (speed <= speedFocData[0].speed) baseline = speedFocData[0].baseline
+    else if (speed >= speedFocData[speedFocData.length - 1].speed) baseline = speedFocData[speedFocData.length - 1].baseline
+    else {
+      // Linear interpolation between dense speed points
+      for (let i = 0; i < speedFocData.length - 1; i++) {
+        const a = speedFocData[i], b = speedFocData[i + 1]
+        if (speed >= a.speed && speed <= b.speed) {
+          const t = (speed - a.speed) / (b.speed - a.speed)
+          baseline = parseFloat((a.baseline + t * (b.baseline - a.baseline)).toFixed(2))
+          break
+        }
+      }
+    }
   }
+  // Mark baselineEntry as referenced so TS doesn't complain (kept for context detection)
+  void baselineEntry
 
   // Get reference FOC from payload or interpolate
   let refFoc: number | null = refEntry?.payload?.userFoc ?? null
@@ -93,7 +110,21 @@ function SpeedFocTooltip({
     refFoc = interpolateUserFoc(speed)
   }
 
+  // Charter Party FOC lookups
+  const lookupCP = (curve?: { speed: number; cpFoc: number }[]): number | null => {
+    if (!curve || curve.length === 0) return null
+    const closest = curve.reduce((prev, curr) =>
+      Math.abs(curr.speed - speed) < Math.abs(prev.speed - speed) ? curr : prev
+    )
+    return Math.abs(closest.speed - speed) < 0.1 ? closest.cpFoc : null
+  }
+  const cpGuaranteed = lookupCP(cpGuaranteedCurve)
+  const cpAdjusted = lookupCP(cpAdjustedCurve)
+
   const delta = refFoc != null && baseline != null ? baseline - refFoc : null
+  const cpGuaranteedDelta = cpGuaranteed != null && baseline != null ? baseline - cpGuaranteed : null
+  const cpAdjustedDelta = cpAdjusted != null && baseline != null ? baseline - cpAdjusted : null
+  const cpAccent = activeCondition === "Ballast" ? "#60A5FA" : "#A78BFA"
 
   // Reported point tooltip
   if (reportedEntry) {
@@ -106,19 +137,33 @@ function SpeedFocTooltip({
         {reportedFoc != null && <p className="text-[#0088FF]">Reported FOC: {reportedFoc.toFixed(2)} MT/day</p>}
         {baseline != null && <p className="text-[#00FFFF]">Baseline FOC: {baseline.toFixed(2)} MT/day</p>}
         {refFoc != null && <p className="text-[#FF8C00]">Reference FOC: {refFoc.toFixed(2)} MT/day</p>}
+        {cpGuaranteed != null && activeCondition && <p style={{ color: cpAccent }}>CP {activeCondition}: {cpGuaranteed.toFixed(2)} MT/day</p>}
+        {cpAdjusted != null && <p className="text-[#22C55E]">CP Weather Adjusted: {cpAdjusted.toFixed(2)} MT/day</p>}
       </div>
     )
   }
 
-  // Baseline / Reference tooltip
+  // Baseline / Reference / CP tooltip
   return (
     <div className="bg-[#102338] border border-slate-600 rounded-lg p-3 text-sm space-y-1 shadow-lg">
       <p className="text-white font-medium">Speed: {speed.toFixed(2)} kts</p>
       {baseline != null && <p className="text-[#00FFFF]">Baseline FOC: {baseline.toFixed(2)} MT/day</p>}
       {refFoc != null && <p className="text-[#FF8C00]">Reference FOC: {refFoc.toFixed(2)} MT/day</p>}
+      {cpGuaranteed != null && activeCondition && <p style={{ color: cpAccent }}>CP {activeCondition}: {cpGuaranteed.toFixed(2)} MT/day</p>}
+      {cpAdjusted != null && <p className="text-[#22C55E]">CP Weather Adjusted: {cpAdjusted.toFixed(2)} MT/day</p>}
       {delta != null && baseline != null && (
         <p className={delta > 0 ? "text-red-400" : "text-green-400"}>
-          Δ: {delta > 0 ? "+" : ""}{delta.toFixed(2)} ({delta > 0 ? "+" : ""}{((delta / baseline) * 100).toFixed(1)}%)
+          Δ Baseline vs Ref: {delta > 0 ? "+" : ""}{delta.toFixed(2)} ({delta > 0 ? "+" : ""}{((delta / baseline) * 100).toFixed(1)}%)
+        </p>
+      )}
+      {cpGuaranteedDelta != null && baseline != null && activeCondition && (
+        <p className={cpGuaranteedDelta > 0 ? "text-red-400" : "text-green-400"}>
+          Δ Baseline vs CP {activeCondition}: {cpGuaranteedDelta > 0 ? "+" : ""}{cpGuaranteedDelta.toFixed(2)} ({cpGuaranteedDelta > 0 ? "+" : ""}{((cpGuaranteedDelta / baseline) * 100).toFixed(1)}%)
+        </p>
+      )}
+      {cpAdjustedDelta != null && baseline != null && (
+        <p className={cpAdjustedDelta > 0 ? "text-red-400" : "text-green-400"}>
+          Δ Baseline vs CP Adjusted: {cpAdjustedDelta > 0 ? "+" : ""}{cpAdjustedDelta.toFixed(2)} ({cpAdjustedDelta > 0 ? "+" : ""}{((cpAdjustedDelta / baseline) * 100).toFixed(1)}%)
         </p>
       )}
     </div>
@@ -140,6 +185,30 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
   const [showTable, setShowTable] = useState(true)
   const [showUserCurve, setShowUserCurve] = useState(false)
   const [showUserCurveModal, setShowUserCurveModal] = useState(false)
+  const [showCharterParty, setShowCharterParty] = useState(false)
+  type CPCondition = "Ballast" | "Laden"
+  type CPPoint = { condition: CPCondition; speed: string; foc: string; draft: string; wave: string; wind: string }
+  const blankBallast = (): CPPoint => ({ condition: "Ballast", speed: "", foc: "", draft: "7", wave: "1", wind: "3" })
+  const blankLaden = (): CPPoint => ({ condition: "Laden", speed: "", foc: "", draft: "11", wave: "1", wind: "3" })
+  const [allCPPoints, setAllCPPoints] = useState<Record<string, CPPoint[]>>({
+    PRIDE: [blankBallast(), blankLaden()],
+    CONSTELLATION: [blankBallast(), blankLaden()],
+    WILLOW: [blankBallast(), blankLaden()],
+  })
+  const cpPoints = allCPPoints[selectedVessel] ?? [blankBallast(), blankLaden()]
+  const updateCPPoint = (index: number, field: keyof CPPoint, value: string) => {
+    setAllCPPoints(prev => ({
+      ...prev,
+      [selectedVessel]: (prev[selectedVessel] ?? []).map((p, i) => i === index ? { ...p, [field]: value } : p),
+    }))
+  }
+  const addCPPoint = (condition: CPCondition) => {
+    const blank = condition === "Ballast" ? blankBallast() : blankLaden()
+    setAllCPPoints(prev => ({ ...prev, [selectedVessel]: [...(prev[selectedVessel] ?? []), blank] }))
+  }
+  const removeCPPoint = (index: number) => {
+    setAllCPPoints(prev => ({ ...prev, [selectedVessel]: (prev[selectedVessel] ?? []).filter((_, i) => i !== index) }))
+  }
   const [normalizeWeather, setNormalizeWeather] = useState(false)
   type CurveRow = { speed: string; foc: string; wave: string; wind: string; draft: string }
   const [allVesselCurves, setAllVesselCurves] = useState<Record<string, CurveRow[]>>({
@@ -312,10 +381,113 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
   }
 
   // Speed vs FOC data — lookup from loaded vessel CSV
-  const speedFocData = vesselData
+  const rawSpeedFocData = vesselData
     .filter(d => d.draft === snappedDraft && d.wave === snappedWave && d.wind === snappedWind)
     .sort((a, b) => a.stw - b.stw)
     .map(d => ({ speed: d.stw, baseline: d.baseline, draft: d.draft }))
+
+  // Densify to 0.1 kts increments via linear interpolation between CSV points
+  const speedFocData = (() => {
+    if (rawSpeedFocData.length < 2) return rawSpeedFocData
+    const dense: { speed: number; baseline: number; draft: number }[] = []
+    const minSpd = rawSpeedFocData[0].speed
+    const maxSpd = rawSpeedFocData[rawSpeedFocData.length - 1].speed
+    const draftVal = rawSpeedFocData[0].draft
+    const steps = Math.round((maxSpd - minSpd) * 10) + 1
+    let segIdx = 0
+    for (let i = 0; i < steps; i++) {
+      const speed = parseFloat((minSpd + i * 0.1).toFixed(1))
+      while (segIdx < rawSpeedFocData.length - 2 && speed > rawSpeedFocData[segIdx + 1].speed) segIdx++
+      const a = rawSpeedFocData[segIdx], b = rawSpeedFocData[segIdx + 1]
+      const t = (speed - a.speed) / (b.speed - a.speed)
+      const baseline = parseFloat((a.baseline + t * (b.baseline - a.baseline)).toFixed(3))
+      dense.push({ speed, baseline, draft: draftVal })
+    }
+    return dense
+  })()
+
+  // Helper: look up baseline FOC at any (speed, draft, wave, wind) by snapping + linear interpolation
+  const baselineAtContext = (speed: number, draft: number, wave: number, wind: number): number | null => {
+    if (vesselData.length === 0) return null
+    const sd = snapToNearest(draft, allDrafts)
+    const sw = snapToNearest(wave, allWaves)
+    const swd = snapToNearest(wind, allWinds)
+    const slice = vesselData
+      .filter(d => d.draft === sd && d.wave === sw && d.wind === swd)
+      .sort((a, b) => a.stw - b.stw)
+    if (slice.length === 0) return null
+    if (speed <= slice[0].stw) return slice[0].baseline
+    if (speed >= slice[slice.length - 1].stw) return slice[slice.length - 1].baseline
+    for (let i = 0; i < slice.length - 1; i++) {
+      const a = slice[i], b = slice[i + 1]
+      if (speed >= a.stw && speed <= b.stw) {
+        const t = (speed - a.stw) / (b.stw - a.stw)
+        return a.baseline + t * (b.baseline - a.baseline)
+      }
+    }
+    return null
+  }
+
+  // Compute CP scale + average guaranteed weather context per condition
+  const computeCPInfo = (condition: CPCondition) => {
+    if (!showCharterParty || speedFocData.length === 0 || vesselData.length === 0) return null
+    const valid = cpPoints
+      .filter(p => p.condition === condition)
+      .map(p => ({
+        speed: parseFloat(p.speed), foc: parseFloat(p.foc),
+        draft: parseFloat(p.draft), wave: parseFloat(p.wave), wind: parseFloat(p.wind),
+      }))
+      .filter(p => !isNaN(p.speed) && !isNaN(p.foc) && p.speed > 0 && p.foc > 0
+        && !isNaN(p.draft) && !isNaN(p.wave) && !isNaN(p.wind))
+    if (valid.length === 0) return null
+    const ratios = valid.map(p => {
+      const bl = baselineAtContext(p.speed, p.draft, p.wave, p.wind)
+      return bl && bl > 0 ? p.foc / bl : null
+    }).filter((r): r is number => r !== null)
+    if (ratios.length === 0) return null
+    const avg = (arr: number[]) => arr.reduce((s, n) => s + n, 0) / arr.length
+    return {
+      scale: avg(ratios),
+      avgDraft: avg(valid.map(p => p.draft)),
+      avgWave: avg(valid.map(p => p.wave)),
+      avgWind: avg(valid.map(p => p.wind)),
+    }
+  }
+  const ballastInfo = computeCPInfo("Ballast")
+  const ladenInfo = computeCPInfo("Laden")
+
+  // Determine which CP condition matches the current draft
+  const distBallast = ballastInfo != null ? Math.abs(snappedDraft - ballastInfo.avgDraft) : Infinity
+  const distLaden = ladenInfo != null ? Math.abs(snappedDraft - ladenInfo.avgDraft) : Infinity
+  const activeCPInfo = distBallast <= distLaden ? ballastInfo : ladenInfo
+  const activeCondition: CPCondition | null = activeCPInfo === ballastInfo && ballastInfo ? "Ballast" : (activeCPInfo === ladenInfo && ladenInfo ? "Laden" : null)
+
+  // CP Guaranteed curve — fixed at the CP's own weather context (does NOT change with sliders)
+  // For each speed, FOC = baseline(speed, cpDraft, cpWave, cpWind) × scale → passes through CP points
+  const cpGuaranteedCurve = (() => {
+    if (!activeCPInfo || !showCharterParty || speedFocData.length === 0) return []
+    return speedFocData.map(d => {
+      const blAtCP = baselineAtContext(d.speed, activeCPInfo.avgDraft, activeCPInfo.avgWave, activeCPInfo.avgWind)
+      return {
+        speed: d.speed,
+        cpFoc: blAtCP != null ? parseFloat((blAtCP * activeCPInfo.scale).toFixed(2)) : 0,
+      }
+    }).filter(d => d.cpFoc > 0)
+  })()
+
+  // CP Weather-Adjusted curve — scales the currently visible baseline by the CP scale (moves with sliders)
+  const cpAdjustedCurve = (() => {
+    if (!activeCPInfo || !showCharterParty || speedFocData.length === 0) return []
+    return speedFocData.map(d => ({
+      speed: d.speed,
+      cpFoc: parseFloat((d.baseline * activeCPInfo.scale).toFixed(2)),
+    }))
+  })()
+
+  // Backward-compat exports for tooltip/table
+  const cpBallastCurve = activeCondition === "Ballast" ? cpAdjustedCurve : []
+  const cpLadenCurve = activeCondition === "Laden" ? cpAdjustedCurve : []
+  const charterPartyCurve = cpAdjustedCurve
 
   // Actual reported scatter points concentrated between 11.5–13 kts
   const generateActualPoints = () => {
@@ -590,6 +762,132 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                   })()}
                 </>
               )}
+              <div className="border-t border-slate-700/50 pt-4 mt-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showCharterParty"
+                    checked={showCharterParty}
+                    onCheckedChange={(v) => setShowCharterParty(!!v)}
+                  />
+                  <label htmlFor="showCharterParty" className="text-white text-base">
+                    Show Charter Party
+                  </label>
+                </div>
+              </div>
+              {showCharterParty && (
+                <div className="space-y-3 bg-[#0A1B26] rounded-lg p-3 border border-[#22C55E]/30">
+                  <p className="text-[#22C55E] text-sm font-medium">CP Guarantee Points</p>
+                  <p className="text-xs text-slate-500">Each point includes its own draft + weather context. The CP curve runs parallel to the visible baseline.</p>
+                  {(["Ballast", "Laden"] as CPCondition[]).map(cond => {
+                    const points = cpPoints.map((p, i) => ({ p, i })).filter(({ p }) => p.condition === cond)
+                    const accent = cond === "Ballast" ? "#60A5FA" : "#A78BFA"
+                    return (
+                      <div key={cond} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: accent }}>{cond}</span>
+                          <button onClick={() => addCPPoint(cond)}
+                            className="text-xs hover:opacity-80 border rounded px-1.5 py-0.5 transition-opacity"
+                            style={{ color: accent, borderColor: `${accent}80` }}>
+                            + Add
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-1 items-center">
+                          <span className="text-slate-500 text-[10px]">Speed</span>
+                          <span className="text-slate-500 text-[10px]">FOC</span>
+                          <span className="text-slate-500 text-[10px]">Draft</span>
+                          <span className="text-slate-500 text-[10px]">Wave</span>
+                          <span className="text-slate-500 text-[10px]">Wind</span>
+                          <span></span>
+                          {points.map(({ p, i }) => (
+                            <React.Fragment key={i}>
+                              <input type="number" value={p.speed} onChange={e => updateCPPoint(i, "speed", e.target.value)}
+                                className="bg-[#071318] border border-slate-700 rounded px-1.5 py-1 text-white text-xs w-full focus:border-[#22C55E] transition-colors" placeholder="kts" />
+                              <input type="number" value={p.foc} onChange={e => updateCPPoint(i, "foc", e.target.value)}
+                                className="bg-[#071318] border border-slate-700 rounded px-1.5 py-1 text-white text-xs w-full focus:border-[#22C55E] transition-colors" placeholder="MT/d" />
+                              <input type="number" value={p.draft} onChange={e => updateCPPoint(i, "draft", e.target.value)}
+                                className="bg-[#071318] border border-slate-700 rounded px-1.5 py-1 text-white text-xs w-full focus:border-[#22C55E] transition-colors" placeholder="m" />
+                              <input type="number" value={p.wave} onChange={e => updateCPPoint(i, "wave", e.target.value)}
+                                className="bg-[#071318] border border-slate-700 rounded px-1.5 py-1 text-white text-xs w-full focus:border-[#22C55E] transition-colors" placeholder="m" />
+                              <input type="number" value={p.wind} onChange={e => updateCPPoint(i, "wind", e.target.value)}
+                                className="bg-[#071318] border border-slate-700 rounded px-1.5 py-1 text-white text-xs w-full focus:border-[#22C55E] transition-colors" placeholder="Bf" />
+                              <button onClick={() => removeCPPoint(i)} disabled={cpPoints.length <= 1}
+                                className="text-red-400 hover:text-red-300 disabled:text-slate-700 disabled:cursor-not-allowed text-base leading-none px-1">×</button>
+                            </React.Fragment>
+                          ))}
+                          {points.length === 0 && (
+                            <span className="col-span-6 text-xs text-slate-600 italic">No {cond.toLowerCase()} points</span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {(cpBallastCurve.length > 0 || cpLadenCurve.length > 0) && (
+                    <p className="text-xs text-[#22C55E]">
+                      Curves: {cpBallastCurve.length > 0 ? "Ballast ✓" : ""}{cpBallastCurve.length > 0 && cpLadenCurve.length > 0 ? " · " : ""}{cpLadenCurve.length > 0 ? "Laden ✓" : ""}
+                    </p>
+                  )}
+                  {/* Quick-jump shortcuts: average draft/wave/wind per condition */}
+                  {(() => {
+                    const avg = (arr: number[]) => arr.reduce((s, n) => s + n, 0) / arr.length
+                    const groupAvg = (cond: CPCondition) => {
+                      const valid = cpPoints
+                        .filter(p => p.condition === cond)
+                        .map(p => ({ d: parseFloat(p.draft), w: parseFloat(p.wave), wi: parseFloat(p.wind) }))
+                        .filter(p => !isNaN(p.d) && !isNaN(p.w) && !isNaN(p.wi))
+                      if (valid.length === 0) return null
+                      return { draft: avg(valid.map(p => p.d)), wave: avg(valid.map(p => p.w)), wind: avg(valid.map(p => p.wi)) }
+                    }
+                    const ballast = groupAvg("Ballast")
+                    const laden = groupAvg("Laden")
+                    if (!ballast && !laden) return null
+                    return (
+                      <div className="space-y-1.5 pt-2 border-t border-slate-700/50">
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">Quick jump to CP context</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ballast && (() => {
+                            const isActive = snappedDraft === snapToNearest(ballast.draft, allDrafts)
+                            return (
+                              <button
+                                onClick={() => {
+                                  setDraft([ballast.draft])
+                                  setWaveHeight([ballast.wave])
+                                  setWindBf([ballast.wind])
+                                }}
+                                className={`text-xs px-2 py-1 rounded border transition-all ${
+                                  isActive
+                                    ? "bg-[#60A5FA]/20 border-[#60A5FA] text-[#60A5FA]"
+                                    : "bg-[#0A1B26] border-slate-600 text-slate-300 hover:border-[#60A5FA]/50 hover:text-white"
+                                }`}
+                              >
+                                Ballast · D{ballast.draft.toFixed(1)} · W{ballast.wave.toFixed(1)}m · Bf{Math.round(ballast.wind)}
+                              </button>
+                            )
+                          })()}
+                          {laden && (() => {
+                            const isActive = snappedDraft === snapToNearest(laden.draft, allDrafts)
+                            return (
+                              <button
+                                onClick={() => {
+                                  setDraft([laden.draft])
+                                  setWaveHeight([laden.wave])
+                                  setWindBf([laden.wind])
+                                }}
+                                className={`text-xs px-2 py-1 rounded border transition-all ${
+                                  isActive
+                                    ? "bg-[#A78BFA]/20 border-[#A78BFA] text-[#A78BFA]"
+                                    : "bg-[#0A1B26] border-slate-600 text-slate-300 hover:border-[#A78BFA]/50 hover:text-white"
+                                }`}
+                              >
+                                Laden · D{laden.draft.toFixed(1)} · W{laden.wave.toFixed(1)}m · Bf{Math.round(laden.wind)}
+                              </button>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -639,6 +937,9 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       interpolateUserFoc={interpolateUserFoc}
                       showUserCurve={showUserCurve && parsedUserCurve.length >= 2}
                       speedFocData={speedFocData}
+                      cpGuaranteedCurve={cpGuaranteedCurve}
+                      cpAdjustedCurve={cpAdjustedCurve}
+                      activeCondition={activeCondition}
                     />
                   )} />
                   <Legend
@@ -648,6 +949,12 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       { value: "Baseline FOC", type: "line", color: "#00FFFF" },
                       ...(showUserCurve && parsedUserCurve.length >= 2
                         ? [{ value: "Reference Model", type: "line" as const, color: "#FF8C00" }]
+                        : []),
+                      ...(showCharterParty && cpGuaranteedCurve.length > 0 && activeCondition
+                        ? [{ value: `CP ${activeCondition}`, type: "line" as const, color: activeCondition === "Ballast" ? "#60A5FA" : "#A78BFA" }]
+                        : []),
+                      ...(showCharterParty && cpAdjustedCurve.length > 0
+                        ? [{ value: "CP Weather Adjusted", type: "line" as const, color: "#22C55E" }]
                         : []),
                     ]}
                   />
@@ -681,6 +988,32 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       strokeDasharray="6 3"
                       name="Reference Model"
                       dot={{ fill: "#FF8C00", r: 4 }}
+                      legendType="line"
+                    />
+                  )}
+                  {showCharterParty && cpGuaranteedCurve.length > 0 && activeCondition && (
+                    <Line
+                      data={cpGuaranteedCurve}
+                      type="monotone"
+                      dataKey="cpFoc"
+                      stroke={activeCondition === "Ballast" ? "#60A5FA" : "#A78BFA"}
+                      strokeWidth={2}
+                      strokeDasharray="8 4"
+                      name={`CP ${activeCondition}`}
+                      dot={false}
+                      legendType="line"
+                    />
+                  )}
+                  {showCharterParty && cpAdjustedCurve.length > 0 && (
+                    <Line
+                      data={cpAdjustedCurve}
+                      type="monotone"
+                      dataKey="cpFoc"
+                      stroke="#22C55E"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      name="CP Weather Adjusted"
+                      dot={false}
                       legendType="line"
                     />
                   )}
@@ -833,12 +1166,20 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                       {showUserCurve && parsedUserCurve.length >= 2 && (
                         <th className="p-3 text-slate-400">Δ vs Baseline</th>
                       )}
+                      {showCharterParty && cpGuaranteedCurve.length > 0 && activeCondition && (
+                        <th className="p-3" style={{ color: activeCondition === "Ballast" ? "#60A5FA" : "#A78BFA" }}>CP {activeCondition} (MT/day)</th>
+                      )}
+                      {showCharterParty && cpAdjustedCurve.length > 0 && (
+                        <th className="p-3 text-[#22C55E]">CP Weather Adj. (MT/day)</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
-                    {speedFocData.map((dataPoint, index) => {
+                    {speedFocData.filter(d => Math.abs(d.speed - Math.round(d.speed * 2) / 2) < 0.001).map((dataPoint, index) => {
                       const userFoc = showUserCurve ? interpolateUserFoc(dataPoint.speed) : null
                       const delta = userFoc !== null ? dataPoint.baseline - userFoc : null
+                      const cpGuaranteedVal = cpGuaranteedCurve.find(c => Math.abs(c.speed - dataPoint.speed) < 0.001)?.cpFoc ?? null
+                      const cpAdjustedVal = cpAdjustedCurve.find(c => Math.abs(c.speed - dataPoint.speed) < 0.001)?.cpFoc ?? null
                       return (
                         <tr key={index} className={`${index % 2 === 0 ? "bg-[#071318]" : "bg-[#0A1B26]"} hover:bg-[#24D2B5]/5 transition-colors`}>
                           <td className="p-3 text-white">{dataPoint.speed.toFixed(1)}</td>
@@ -852,6 +1193,16 @@ export function OverviewTab({ selectedVessel, timePeriod }: OverviewTabProps) {
                           {showUserCurve && parsedUserCurve.length >= 2 && (
                             <td className={`p-3 ${delta === null ? "text-slate-500" : delta > 0 ? "text-red-400" : "text-green-400"}`}>
                               {delta !== null ? `${delta > 0 ? "+" : ""}${delta.toFixed(2)} (${delta > 0 ? "+" : ""}${((delta / dataPoint.baseline) * 100).toFixed(1)}%)` : "—"}
+                            </td>
+                          )}
+                          {showCharterParty && cpGuaranteedCurve.length > 0 && activeCondition && (
+                            <td className="p-3" style={{ color: activeCondition === "Ballast" ? "#60A5FA" : "#A78BFA" }}>
+                              {cpGuaranteedVal !== null ? cpGuaranteedVal.toFixed(2) : "—"}
+                            </td>
+                          )}
+                          {showCharterParty && cpAdjustedCurve.length > 0 && (
+                            <td className="p-3 text-[#22C55E]">
+                              {cpAdjustedVal !== null ? cpAdjustedVal.toFixed(2) : "—"}
                             </td>
                           )}
                         </tr>

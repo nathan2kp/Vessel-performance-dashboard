@@ -25,7 +25,18 @@
       "Bash(cp \"C:\\\\Users\\\\kamal\\\\Downloads\\\\toqua_fuel_grids_tables\\\\pride_fuel_grid.csv\" \"C:\\\\Users\\\\kamal\\\\Downloads\\\\vessel-performance-dashboard\\\\public\\\\data\\\\pride.csv\")",
       "Bash(cp \"C:\\\\Users\\\\kamal\\\\Downloads\\\\toqua_fuel_grids_tables\\\\willow_fuel_grid.csv\" \"C:\\\\Users\\\\kamal\\\\Downloads\\\\vessel-performance-dashboard\\\\public\\\\data\\\\willow.csv\")",
       "Bash(awk -F',' '{print NF}' \"C:\\\\Users\\\\kamal\\\\Downloads\\\\vessel-performance-dashboard\\\\public\\\\data\\\\pride.csv\")",
-      "Bash(wc -l \"C:\\\\Users\\\\kamal\\\\Downloads\\\\vessel-performance-dashboard\\\\public\\\\data/\"*.csv)"
+      "Bash(wc -l \"C:\\\\Users\\\\kamal\\\\Downloads\\\\vessel-performance-dashboard\\\\public\\\\data/\"*.csv)",
+      "WebFetch(domain:www.metoc.navy.mil)",
+      "Bash(python scripts/jtwc_scraper.py jtwc_output)",
+      "Bash(py --version)",
+      "Bash(where python:*)",
+      "Bash(where py:*)",
+      "Bash(py scripts/jtwc_scraper.py jtwc_output)",
+      "Bash(py -m pip install requests beautifulsoup4)",
+      "Bash(py -c ':*)",
+      "Bash(node gen_doc.js)",
+      "Bash(node --require \"C:\\\\Users\\\\kamal\\\\AppData\\\\Roaming\\\\npm\\\\node_modules\\\\docx\\\\build\\\\index.js\" -e \"console.log\\('ok'\\)\")",
+      "Bash(node -e \"console.log\\(require.resolve.paths\\('docx'\\)\\)\")"
     ]
   }
 }

@@ -1,0 +1,302 @@
+[
+  {
+    "basin": "Northwest Pacific/North Indian Ocean* Tropical Systems",
+    "storm_header": {
+      "raw": "Tropical Storm  04W (Sinlaku) Warning #05",
+      "storm_type": "Tropical Storm",
+      "storm_id": "04W",
+      "storm_name": "Sinlaku",
+      "warning_number": 5
+    },
+    "source_url": "https://www.metoc.navy.mil/jtwc/products/wp0426web.txt",
+    "feed_pub_date": "Fri, 10 Apr 26 04:08:02 +0000",
+    "scraped_at": "2026-04-10T04:10:18.558356+00:00",
+    "parsed": {
+      "storm_type": "TROPICAL STORM",
+      "storm_id": "04W",
+      "storm_name": "SINLAKU",
+      "warning_number": 5,
+      "dtg": "100000Z",
+      "position": {
+        "lat": 8.2,
+        "lon": 151.2,
+        "lat_str": "8.2N",
+        "lon_str": "151.2E"
+      },
+      "motion": {
+        "direction_deg": 250,
+        "speed_kt": 3
+      },
+      "max_winds_kt": 40,
+      "gusts_kt": 50,
+      "wind_radii": {
+        "R64kt_nm": {
+          "NE": 30,
+          "SE": 30,
+          "SW": 30,
+          "NW": 30
+        },
+        "R50kt_nm": {
+          "NE": 30,
+          "SE": 40,
+          "SW": 40,
+          "NW": 30
+        },
+        "R34kt_nm": {
+          "NE": 120,
+          "SE": 70,
+          "SW": 70,
+          "NW": 120
+        }
+      },
+      "forecasts": {
+        "12H": {
+          "valid_dtg": "101200Z",
+          "lat": 8.2,
+          "lon": 150.8,
+          "lat_str": "8.2N",
+          "lon_str": "150.8E",
+          "max_winds_kt": 50,
+          "gusts_kt": 65
+        },
+        "24H": {
+          "valid_dtg": "110000Z",
+          "lat": 8.4,
+          "lon": 150.6,
+          "lat_str": "8.4N",
+          "lon_str": "150.6E",
+          "max_winds_kt": 60,
+          "gusts_kt": 75
+        },
+        "36H": {
+          "valid_dtg": "111200Z",
+          "lat": 8.9,
+          "lon": 150.3,
+          "lat_str": "8.9N",
+          "lon_str": "150.3E",
+          "max_winds_kt": 70,
+          "gusts_kt": 85
+        },
+        "48H": {
+          "valid_dtg": "120000Z",
+          "lat": 9.6,
+          "lon": 149.5,
+          "lat_str": "9.6N",
+          "lon_str": "149.5E",
+          "max_winds_kt": 85,
+          "gusts_kt": 105
+        },
+        "72H": {
+          "valid_dtg": "130000Z",
+          "lat": 11.4,
+          "lon": 147.2,
+          "lat_str": "11.4N",
+          "lon_str": "147.2E",
+          "max_winds_kt": 105,
+          "gusts_kt": 130
+        },
+        "96H": {
+          "valid_dtg": "140000Z",
+          "lat": 13.2,
+          "lon": 145.1,
+          "lat_str": "13.2N",
+          "lon_str": "145.1E",
+          "max_winds_kt": 105,
+          "gusts_kt": 130
+        },
+        "120H": {
+          "valid_dtg": "150000Z",
+          "lat": 15.2,
+          "lon": 143.5,
+          "lat_str": "15.2N",
+          "lon_str": "143.5E",
+          "max_winds_kt": 105,
+          "gusts_kt": 130
+        }
+      }
+    }
+  },
+  {
+    "basin": "Southern Hemisphere Tropical Systems",
+    "storm_header": {
+      "raw": "Tropical Cyclone  31P (Vaianu) Warning #14",
+      "storm_type": "Tropical Cyclone",
+      "storm_id": "31P",
+      "storm_name": "Vaianu",
+      "warning_number": 14
+    },
+    "source_url": "https://www.metoc.navy.mil/jtwc/products/sh3126web.txt",
+    "feed_pub_date": "Fri, 10 Apr 26 04:08:02 +0000",
+    "scraped_at": "2026-04-10T04:10:19.493688+00:00",
+    "parsed": {
+      "storm_type": "TROPICAL CYCLONE",
+      "storm_id": "31P",
+      "storm_name": "VAIANU",
+      "warning_number": 14,
+      "dtg": "090600Z",
+      "position": {
+        "lat": -26.8,
+        "lon": 179.0,
+        "lat_str": "26.8S",
+        "lon_str": "179.0E"
+      },
+      "motion": {
+        "direction_deg": 165,
+        "speed_kt": 6
+      },
+      "max_winds_kt": 55,
+      "gusts_kt": 70,
+      "wind_radii": {
+        "R50kt_nm": {
+          "NE": 90,
+          "SE": 75,
+          "SW": 80,
+          "NW": 70
+        },
+        "R34kt_nm": {
+          "NE": 170,
+          "SE": 200,
+          "SW": 170,
+          "NW": 140
+        }
+      },
+      "forecasts": {
+        "12H": {
+          "valid_dtg": "091800Z",
+          "lat": -28.0,
+          "lon": 179.1,
+          "lat_str": "28.0S",
+          "lon_str": "179.1E",
+          "max_winds_kt": 55,
+          "gusts_kt": 70
+        },
+        "24H": {
+          "valid_dtg": "100600Z",
+          "lat": -29.3,
+          "lon": 178.8,
+          "lat_str": "29.3S",
+          "lon_str": "178.8E",
+          "max_winds_kt": 55,
+          "gusts_kt": 70
+        },
+        "36H": {
+          "valid_dtg": "101800Z",
+          "lat": -30.7,
+          "lon": 177.7,
+          "lat_str": "30.7S",
+          "lon_str": "177.7E",
+          "max_winds_kt": 50,
+          "gusts_kt": 65
+        }
+      }
+    }
+  },
+  {
+    "basin": "Southern Hemisphere Tropical Systems",
+    "storm_header": {
+      "raw": "Tropical Cyclone  31P (Vaianu) Warning #14",
+      "storm_type": "Tropical Cyclone",
+      "storm_id": "31P",
+      "storm_name": "Vaianu",
+      "warning_number": 14
+    },
+    "source_url": "https://www.metoc.navy.mil/jtwc/products/sh3026web.txt",
+    "feed_pub_date": "Fri, 10 Apr 26 04:08:02 +0000",
+    "scraped_at": "2026-04-10T04:10:20.427834+00:00",
+    "parsed": {
+      "storm_type": "TROPICAL CYCLONE",
+      "storm_id": "30P",
+      "storm_name": "MAILA",
+      "warning_number": 17,
+      "dtg": "100000Z",
+      "position": {
+        "lat": -8.1,
+        "lon": 154.6,
+        "lat_str": "8.1S",
+        "lon_str": "154.6E"
+      },
+      "motion": {
+        "direction_deg": 65,
+        "speed_kt": 2
+      },
+      "max_winds_kt": 70,
+      "gusts_kt": 85,
+      "wind_radii": {
+        "R64kt_nm": {
+          "NE": 40,
+          "SE": 40,
+          "SW": 40,
+          "NW": 40
+        },
+        "R50kt_nm": {
+          "NE": 60,
+          "SE": 55,
+          "SW": 55,
+          "NW": 60
+        },
+        "R34kt_nm": {
+          "NE": 100,
+          "SE": 100,
+          "SW": 160,
+          "NW": 130
+        }
+      },
+      "forecasts": {
+        "12H": {
+          "valid_dtg": "101200Z",
+          "lat": -8.4,
+          "lon": 154.2,
+          "lat_str": "8.4S",
+          "lon_str": "154.2E",
+          "max_winds_kt": 60,
+          "gusts_kt": 75
+        },
+        "24H": {
+          "valid_dtg": "110000Z",
+          "lat": -8.6,
+          "lon": 153.9,
+          "lat_str": "8.6S",
+          "lon_str": "153.9E",
+          "max_winds_kt": 50,
+          "gusts_kt": 65
+        },
+        "36H": {
+          "valid_dtg": "111200Z",
+          "lat": -8.9,
+          "lon": 153.7,
+          "lat_str": "8.9S",
+          "lon_str": "153.7E",
+          "max_winds_kt": 40,
+          "gusts_kt": 50
+        },
+        "48H": {
+          "valid_dtg": "120000Z",
+          "lat": -9.2,
+          "lon": 153.1,
+          "lat_str": "9.2S",
+          "lon_str": "153.1E",
+          "max_winds_kt": 35,
+          "gusts_kt": 45
+        },
+        "72H": {
+          "valid_dtg": "130000Z",
+          "lat": -9.8,
+          "lon": 151.2,
+          "lat_str": "9.8S",
+          "lon_str": "151.2E",
+          "max_winds_kt": 35,
+          "gusts_kt": 45
+        },
+        "96H": {
+          "valid_dtg": "140000Z",
+          "lat": -10.4,
+          "lon": 149.4,
+          "lat_str": "10.4S",
+          "lon_str": "149.4E",
+          "max_winds_kt": 30,
+          "gusts_kt": 40
+        }
+      }
+    }
+  }
+]
