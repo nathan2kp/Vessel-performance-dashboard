@@ -1,17 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { OverviewTab } from "@/components/overview-tab"
+import { OverviewTab } from "@/components/overview-tab-v2"
 import { HullTab } from "@/components/hull-tab"
 import { MachineryTab } from "@/components/machinery-tab"
 import { VesselInfoCard } from "@/components/vessel-info-card"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Ship, Calendar } from "lucide-react"
 
+const PERIOD_OPTIONS = ["Last Week", "Last Month", "Last Quarter", "YTD", "Custom"] as const
+type Period = typeof PERIOD_OPTIONS[number]
+
 export default function VesselDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedVessel, setSelectedVessel] = useState("PRIDE")
-  const [timePeriod, setTimePeriod] = useState("Last Month")
+  const [timePeriod, setTimePeriod] = useState<Period>("Last Month")
+  // improvement #7: custom date range state
+  const [customFrom, setCustomFrom] = useState("")
+  const [customTo, setCustomTo] = useState("")
 
   const tabItems = [
     { id: "overview", title: "Overview" },
@@ -19,11 +25,8 @@ export default function VesselDashboard() {
     { id: "machinery", title: "Machinery" },
   ]
 
-  const tabProps = { selectedVessel, timePeriod }
-
   return (
     <div className="min-h-screen w-full bg-[#051219] p-4 md:p-6 lg:p-8">
-      {/* Top Section: Vessel Info Card */}
       <VesselInfoCard selectedVessel={selectedVessel} />
 
       {/* Selection Controls */}
@@ -44,29 +47,49 @@ export default function VesselDashboard() {
             </SelectContent>
           </Select>
         </div>
+
         <div>
           <label className="flex items-center gap-1.5 text-base font-medium text-slate-300 mb-2">
             <Calendar className="w-4 h-4 text-[#24D2B5]" />
             Select Period
           </label>
-          <Select value={timePeriod} onValueChange={setTimePeriod}>
+          <Select value={timePeriod} onValueChange={v => setTimePeriod(v as Period)}>
             <SelectTrigger className="card-maritime text-white hover:border-[#24D2B5]/40 transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#0A1B26] border-slate-600">
-              <SelectItem value="Last Week">Last Week</SelectItem>
-              <SelectItem value="Last Month">Last Month</SelectItem>
-              <SelectItem value="Last Quarter">Last Quarter</SelectItem>
-              <SelectItem value="YTD">YTD</SelectItem>
+              {PERIOD_OPTIONS.map(p => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
+
+          {/* improvement #7: custom date range inputs */}
+          {timePeriod === "Custom" && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                className="flex-1 bg-[#0A1B26] border border-slate-600 rounded px-2 py-1.5 text-white text-sm focus:border-[#24D2B5] outline-none transition-colors"
+              />
+              <span className="text-slate-500 text-sm">to</span>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom}
+                onChange={e => setCustomTo(e.target.value)}
+                className="flex-1 bg-[#0A1B26] border border-slate-600 rounded px-2 py-1.5 text-white text-sm focus:border-[#24D2B5] outline-none transition-colors"
+              />
+            </div>
+          )}
         </div>
       </div>
 
       {/* Tab Navigation */}
       <div className="mb-6">
         <div className="flex bg-[#0A1B26]/50 p-1 rounded-xl border border-slate-700/50 backdrop-blur-sm">
-          {tabItems.map((tab) => (
+          {tabItems.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -82,11 +105,18 @@ export default function VesselDashboard() {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <div className="animate-fade-in-up">
-        {activeTab === "overview" && <OverviewTab {...tabProps} />}
-        {activeTab === "hull" && <HullTab {...tabProps} />}
-        {activeTab === "machinery" && <MachineryTab {...tabProps} />}
+        {activeTab === "overview" && (
+          <OverviewTab
+            selectedVessel={selectedVessel}
+            timePeriod={timePeriod}
+            customFrom={customFrom}
+            customTo={customTo}
+          />
+        )}
+        {activeTab === "hull" && <HullTab selectedVessel={selectedVessel} timePeriod={timePeriod} />}
+        {activeTab === "machinery" && <MachineryTab selectedVessel={selectedVessel} timePeriod={timePeriod} />}
       </div>
     </div>
   )
